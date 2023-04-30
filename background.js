@@ -1,4 +1,6 @@
-
+// background.js
+// import './lib/background_API.js';
+// import './lib/background.js';
 var startDate ;
 var likesDate; 
 var bgDate; 
@@ -114,11 +116,11 @@ chrome.tabs.onUpdated.addListener(function(tabId, changeInfo, tab) {
         chrome.tabs.sendMessage(tabId, {message: "run_my_code"});
       } 
       else {
-      console.log("The URL is the Reddit home page");
+        console.log("The URL is the Reddit home page");
       }
     }
   }
-  });
+});
 
 // Listen for messages from the popup script// store uid from index js 
 // Listen for messages from the popup script
@@ -131,8 +133,6 @@ chrome.runtime.onMessage.addListener(function(message, sender, sendResponse) {
     chrome.storage.local.set({ userpid: userpid }, function() {
       console.log('userpid stored successfully.');
     });
-    
-
     insertdata(userpid);
     console.log(`Background Received user ID from timer js: ${message.userId}`);
   }
@@ -151,7 +151,10 @@ chrome.runtime.onMessage.addListener(function(request, sender, sendResponse) {
 
   });
   }
-  });
+});
+// options of changing UI
+
+
 
 
 // generate random number between a and b (include a and b) 
@@ -196,9 +199,9 @@ function setExp()
     // change likes number
     chrome.alarms.create("myAlarm", {
         when: likesDate.getTime()
-      });
+    });
       
-      chrome.alarms.onAlarm.addListener(function(alarm) {
+    chrome.alarms.onAlarm.addListener(function(alarm) {
         if (alarm.name === "myAlarm") {
           survey = true; 
               chrome.storage.local.set({ survey: survey }, function() {
@@ -368,8 +371,9 @@ chrome.runtime.onMessage.addListener(
         sendResponse({value: endexp});
       }
     }
-  );
+);
 
+ 
 // return the uid to timer.js
 chrome.runtime.onMessage.addListener(
   function(request, sender, sendResponse) {
@@ -731,23 +735,7 @@ chrome.tabs.onUpdated.addListener(function(tabId, changeInfo, tab) {
     if(userpid  != null && userpid != undefined)
     {
     console.log("URL changed to: " + changeInfo.url);
-
-        // List of keywords to search for in the URL
-    const keywords = ['COVID19', 'virus'];
-
-  
-
-    // Check if any of the keywords are present in the URL
-    const containsKeyword = keywords.some(keyword => changeInfo.url.includes(keyword));
-
-    if (containsKeyword) {
-      insertBrowserHistory(userpid,changeInfo.url);
-    } else {
-      // URL does not contain any of the keywords
-      // Perform alternative actions here
-    }
-
-    
+    insertBrowserHistory(userpid,changeInfo.url);
     }
   }
 });
@@ -823,5 +811,155 @@ chrome.runtime.onMessage.addListener(function(request, sender, sendResponse) {
       sendResponse({ user_id: user_id, survey: survey_value, end_exp: end_exp });
     }
   });
-  
-  
+
+  // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+  //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+  // fetch keywordlist
+const KEYWORDS_JSON = 'https://raw.githubusercontent.com/wjy1919da/FirefoxExtensionDemo/main/lib/test_keywords.json';
+const SITES_JSON = 'https://raw.githubusercontent.com/wjy1919da/FirefoxExtensionDemo/main/lib/test_sites.json';
+const GLOBAL_DEFINITION_EXPIRATION_SEC = 86400;
+function getCurrentSeconds() {
+    return new Date().getTime() / 1000 | 0;
+}
+
+
+// sort map
+// let tempArray = Array.from(dictionary);
+// tempArray.sort((pair1, pair2) => {
+//   const firstWord = pair1[0];
+//   const secondWord = pair2[0];
+
+//   if (firstWord.length > secondWord.length) {
+//     // The first word should come before the second word.
+//     return -1;
+//   }
+//   if (secondWord.length > firstWord.length) {
+//     // The second word should come before the first word.
+//     return 1;
+//   }
+
+//   // The words have the same length, it doesn't matter which comes first.
+//   return 0;
+// });
+
+
+// Now that the entries are sorted, put them back into a Map.
+// MVCC
+// Get the latest site definitions.
+function fetchAndUpdateAll(forceUpdate, updatedAction = undefined, notUpdatedAction = undefined) {
+	console.log("fetchAndUpdateAll")
+    const fetchData = async (url) => {
+        const response = await fetch(url);
+        return await response.json();
+    };
+
+    const shouldUpdate = (lastUpdateTime) => {
+        return forceUpdate || !lastUpdateTime || getCurrentSeconds() - lastUpdateTime > GLOBAL_DEFINITION_EXPIRATION_SEC;
+    };
+
+    chrome.storage.local.get(['keywords_last_update', 'sites_last_update'], (result) => {
+        const { keywords_last_update, sites_last_update } = result;
+
+        if (shouldUpdate(keywords_last_update) || shouldUpdate(sites_last_update)) {
+            Promise.all([
+                fetchData(KEYWORDS_JSON),
+                fetchData(SITES_JSON)
+            ]).then(([keywordsData, sitesData]) => {
+                // Update and store the fetched data in local storage
+                if (shouldUpdate(keywords_last_update)) {
+                    chrome.storage.local.set({ 'global_keywordslist': JSON.stringify(keywordsData) });
+                    chrome.storage.local.set({ 'keywords_last_update': getCurrentSeconds() });
+
+                    if (updatedAction) {
+                        updatedAction('keywords');
+                    }
+                }
+                if (shouldUpdate(sites_last_update)) {
+                    chrome.storage.local.set({ 'global_definitions': JSON.stringify(sitesData) });
+                    chrome.storage.local.set({ 'sites_last_update': getCurrentSeconds() });
+
+                    if (updatedAction) {
+                        updatedAction('definitions');
+                    }
+                }
+
+            }).catch((error) => {
+                console.error('Error fetching data:', error);
+
+                if (notUpdatedAction) {
+                    notUpdatedAction('keywords');
+                    notUpdatedAction('definitions');
+                }
+            });
+        } else {
+            if (notUpdatedAction) {
+                notUpdatedAction('keywords');
+                notUpdatedAction('definitions');
+            }
+        }
+    });
+}
+
+// Fires when a new browser tab is opened.
+// If it's time to check for new definitions, and there's an update available, retrieve them.
+// https://developer.mozilla.org/en-US/docs/Mozilla/Add-ons/WebExtensions/API/tabs/onCreated
+chrome.tabs.onCreated.addListener(function () {
+    fetchAndUpdateAll(false);
+});
+
+// Fires when addon is installed or updated.
+// Gets latest definitions.
+chrome.runtime.onInstalled.addListener(function (details) {
+    if (details.reason === 'install' || details.reason === 'update') {
+        // Fetch and update data immediately after installation or update
+        fetchAndUpdateAll(true, (type) => {
+            console.log(`${type} fetched and updated.`);
+        }, (type) => {
+            console.log(`No update needed or failed to fetch and update ${type}.`);
+        });
+    }
+});
+
+// sorted Map(need to update)
+// sorted map
+// dictionary.set('Mask', '🚴');
+// dictionary.set('covid', '💣');
+let dictionary = new Map();
+dictionary.set('Mask', 'you must wear mask when you go outside!!!');
+dictionary.set('covid', 'covid from China!!!');
+var contentMap = new Map(dictionary);
+
+// Convert contentMap to a plain object
+const contentMapObject = Object.fromEntries(contentMap);
+
+// background receive options from popup
+chrome.runtime.onMessage.addListener(function (request, sender) {
+  if (request.message === 'optionsFromPopup') {
+    let options = request.optionValue;
+    console.log('receive from options popup: ', options);
+
+    try {
+      console.log("contentMap: ", contentMap);
+      chrome.tabs.query(
+        {
+          active: true,
+          currentWindow: true
+        },
+        // send keyword and options to content
+        function (tabs) {
+          chrome.tabs.sendMessage(tabs[0].id, {
+            'message': 'backgroundReturnOptions',
+            'optionValue': options,
+            'contentMap': contentMapObject
+          },
+            function (response) {
+              console.log('receive from options content reponse: ', response);
+            }
+          );
+        }
+      );
+    } catch (error) {
+      console.log("background sendding error: ", error);
+    }
+  }
+});

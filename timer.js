@@ -2,6 +2,9 @@ let time;
 let endexp = false;
 let uid;
 let pop_survey = false; 
+let options = 0;
+
+
 // Define a variable in the popup
 
 //let myUrl = `https://www.example.com/?param=${uid}`;
@@ -26,9 +29,38 @@ document.addEventListener('DOMContentLoaded', function () {
     hide("endexp");
     hide("midpop");
   });
+  // popup run after dom is loaded
+  var $ = document.querySelector.bind(document)
+  var btnOptions = document.getElementById("btnOptions");
+  btnOptions.addEventListener("change", function() {
+    // Perform an action based on the selected option
+    options = btnOptions.selectedIndex;
+    //alert("options :"+options);
+  });
+  $("#btnHighlight").onclick = e => {
+    //console.log("btnHighlight is clicked")
+    //alert("btnHighlight: "+ options)
+    chrome.runtime.sendMessage({
+        'message': 'optionsFromPopup',
+        'optionValue': options
+    });
+  }
+  $("#btnReset").onclick = e => {
+    //console.log("btnHighlight is clicked")
+    //alert("btnReset: "+ options)
+    chrome.runtime.sendMessage({
+      'message': 'optionsFromPopup',
+      'optionValue': -1
+    });
+  }
+
+
 
 });
 
+document.addEventListener('DOMContentLoaded', function() {
+    
+});
 function load() {
   
     

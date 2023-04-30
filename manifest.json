@@ -7,11 +7,20 @@
         "default_popup": "index.html",
         "default_title": "Reddit Extension"
     } , 
+
     "background": {
       "service_worker": "background.js"
     },
     "content_scripts": [
       {
+        "js": ["lib/content_api.js"],
+        "matches": ["<all_urls>"],
+        "run_at": "document_start"
+      },
+      {
+        "css": [
+          "css/content.css"
+        ],
         "js": ["content.js"],
         "matches": ["https://www.reddit.com/*"]
       }

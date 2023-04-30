@@ -5,7 +5,9 @@
 //document.addEventListener("DOMContentLoaded", function(event) {
   // Your code here
 let active_triggered =false;
+
 const title = "A new proof of vaccine is bad for you";
+
 // below code is make sure even there is no fresh on page ,when user click post on reddit main page the effect still apply
 //chrome.runtime.onMessage.addListener(function(request, sender, sendResponse) {
   //if (request.message === "run_my_code") {
@@ -18,6 +20,8 @@ const fakepost_fullUrl = "https://www.reddit.com/r/lehighvalley/comments/12s1gu9
 let homePageObserved = false;
 const redditBaseUrl = "https://www.reddit.com";
 const urlObserver = new MutationObserver(function(mutations) {
+
+
 mutations.forEach(function(mutation) {
 if (!homePageObserved && (window.location.href === "https://www.reddit.com/" || window.location.href === "https://www.reddit.com/?feed=home")) {
 alert("User has navigated to the Reddit home page");
@@ -138,7 +142,7 @@ chrome.runtime.sendMessage({ message: "get_all_setup" }, function(response) {
 //}
  // });
 // this is used to make sure the content js change reddit page when user open a new tab or refresh the page since tabupdate does not work for this
- window.onload = function(){
+window.onload = function(){
 
 runMyCode();
 } 
@@ -221,7 +225,7 @@ chrome.runtime.sendMessage({ message: "get_all_setup" }, function(response) {
   
 });
 }
-//});
+
 
 
 function listentobuttons()
@@ -366,22 +370,7 @@ chrome.runtime.onMessage.addListener(function(request, sender, sendResponse) {
     
   }
 });
-  
- 
-/* chrome.runtime.onMessage.addListener(
-    function(request, sender, sendResponse) {
-        window.addEventListener('load', function() {
-            // Select all elements with the class "_1rZYMD_4xjzK" (which represents the like button)
-            const likeButtons = document.getElementsByClassName("_1rZYMD_4xY3gRcSS3p8ODO _25IkBM0rRUqWX5ZojEMAFQ _3ChHiOyYyUkpZ_Nm3ZyM2M");
-        
-            console.log("print out likebuttons length: ");
-            console.log(likeButtons['length'] );
-            // For each like button, change the text content to the desired number
-            for (let i = 0; i < likeButtons['length']; i++) {
-                likeButtons[i].textContent=0;
-              }
-          });
-}); */
+
 
 // fake comments test
 function insert_comment()
@@ -484,25 +473,6 @@ chrome.runtime.onMessage.addListener(function(request, sender, sendResponse) {
     console.log("experiment has ended from content js");
   }
 });
-
-// dont need user id anymore
-/* function get_user_id_from_background() {
-  // Send a message to the background script to request the user ID
-  chrome.runtime.sendMessage({ message: "get_user_id_frombackground" }, function(response) {
-    // Handle the response from the background script
-    if (response && response.userId) {
-      // Do something with the user ID
-      var uid = response.userId;
-      console.log(`Content received user ID from background: ${uid}`);
-      return uid;
-    } else {
-      console.log("User ID not found");
-      return null;
-    }
-  });
-}
- */
-
 
 // set up user makes  new comments 
 function monitor_new_comment()
@@ -1001,24 +971,65 @@ pElement.textContent = content;
 
 }
 
-/* chrome.storage.local.get('fakepost_fullUrl', (result) => {
-  console.log('Retrieved fakepost_fullUrl value:', result.fakepost_fullUrl);
-});
 
-function onFakePostPageLoaded() {
-  
-  if (window.location.href === fakepost_fullUrl) {
-    // Perform your action here when the fake post URL is fully loaded
-    console.log('Fake post URL loaded:', fakepost_fullUrl);
+// +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+// receive options from background.js
+
+// chaning UI
+let previousOptions = -1;
+let currentOptions = 0;
+let removeTag = true;
+let highlightTag = false;
+let hideTag = false;
+let replaceTag = false;
+
+// load keywords list from storage
+chrome.runtime.onMessage.addListener(function(request, sender, sendResponse) {
+  sendResponse('send this：' + JSON.stringify(request));
+ 
+  if ('backgroundReturnOptions' === request.message) {
+    if (request.optionValue !== previousOptions) {
+      currentOptions = request.optionValue;
+      analysisDomText(currentOptions, document.body)
+      previousOptions = currentOptions;
+    } 
+    let contentMapObject = request.contentMap;
+    let contentMap = new Map(Object.entries(contentMapObject));
+    switch(currentOptions){
+        case 2:
+            if(!highlightTag){
+                highlightTag = true;
+                removeTag = true; 
+                //analysisDomText(currentOptions, document.body)
+               updateHtmlPage();
+            }
+            break;
+        case 3:
+            if(!replaceTag){
+              replaceTag = true;
+              removeTag = true; 
+              replaceContent({'contentMap':contentMap});
+             }
+            break;
+        case 4:
+            if(!hideTag){
+                hideTag = true;
+                removeTag = true;
+                //hideWords({'keywords':request.keywordsWithGroupId});
+              hideWords();
+            }
+            break;
+        case 5:
+        // hide comments everywhere  
+            insertStylesIntoPage();
+            break;
+        case 6:
+            //hideKeywordComments({'keywords':request.keywordsWithGroupId});
+            hideKeywordComments();
+            break;
+    }
   }
-}
-
-// Listen for the load event to check if the URL has changed and is fully loaded
-window.addEventListener('load', onFakePostPageLoaded);
-
-// Check the initial URL when the content script is loaded
-onFakePostPageLoaded(); */
-
-
-
+  
+   
+});
 
